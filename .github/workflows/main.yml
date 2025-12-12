@@ -43,7 +43,7 @@ jobs:
           X_DOCKER_TAG: ${{ env.DOCKER_TAG }}
           X_ODH_IMAGERESIZERCORE_S3: ${{ secrets.ODH_IMAGERESIZERCORE_S3 }}
           X_SERVER_PORT: 1032
-
+          X_ASPNETCORE_ENVIRONMENT: "Development"
 
       - name: Build and push 
         uses: noi-techpark/github-actions/docker-build-and-push@v2
@@ -79,6 +79,7 @@ jobs:
           X_DOCKER_TAG: ${{ env.DOCKER_TAG }}
           X_ODH_IMAGERESIZERCORE_S3: ${{ secrets.ODH_IMAGERESIZERCORE_S3 }}
           X_SERVER_PORT: 1032
+          X_ASPNETCORE_ENVIRONMENT: "Production"
 
       - name: Build and push 
         uses: noi-techpark/github-actions/docker-build-and-push@v2
