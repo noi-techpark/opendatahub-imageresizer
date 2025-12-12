@@ -2,22 +2,24 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-﻿using System.IO;
-using System.Net.Http;
-using System.Threading.Tasks;
-using System.Threading;
-using System;
 using AspNetCore.CacheOutput;
+using AspNetCore.Proxy;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Configuration;
-using SixLabors.ImageSharp.Formats;
-using SixLabors.ImageSharp.Processing;
 using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.Formats;
+using SixLabors.ImageSharp.Formats.Gif;
 using SixLabors.ImageSharp.Formats.Jpeg;
 using SixLabors.ImageSharp.Formats.Png;
-using SixLabors.ImageSharp.Formats.Gif;
-using AspNetCore.Proxy;
+using SixLabors.ImageSharp.Processing;
+using System;
+﻿using System.IO;
+using System.Linq;
+using System.Net.Http;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace odh_imageresizer_core
 {
@@ -36,8 +38,9 @@ namespace odh_imageresizer_core
         }
 
         #region ImageResizing
-        
+
         [CacheOutput(ClientTimeSpan = 86400, ServerTimeSpan = 86400)]
+        //[ResponseCache(Duration = 86400, Location = ResponseCacheLocation.Any, VaryByQueryKeys = new[] { "imageurl", "width", "height" })]
         [HttpGet, Route("GetImage")]
         public async Task<IActionResult> GetImage(string imageurl, int? width = null, int? height = null, CancellationToken cancellationToken = default)
         {
@@ -68,6 +71,26 @@ namespace odh_imageresizer_core
                     throw new Exception("Imageformat detection failed");
 
                 var stream = await ImageToStream(img, imgrawformat, cancellationToken);
+
+                // Extract filename from URL or use a default
+                //string fileName = imageurl;
+                //if (string.IsNullOrEmpty(imageurl))
+                //    fileName = "image" + imgrawformat.FileExtensions.FirstOrDefault();
+
+                // Convert stream to byte array so Content-Length can be set
+                
+                //byte[] imageBytes = stream.ToArray();
+
+                //using (var ms = new MemoryStream())
+                //{
+                //    await stream.CopyToAsync(ms, cancellationToken);
+                //    imageBytes = ms.ToArray();
+                //}
+
+                // Set headers BEFORE creating the result
+                //Response.Headers["Content-Disposition"] = $"inline; filename=\"{fileName}\"";
+                //Response.Headers["Content-Length"] = imageBytes.Length.ToString();
+
                 return File(stream, imgrawformat.DefaultMimeType);
             }
             catch(Exception ex)
@@ -78,7 +101,7 @@ namespace odh_imageresizer_core
 
         //Test Method upload to S3 Bucket
 
-        private async Task<Stream> ImageToStream(Image imageIn, IImageFormat imgformat, CancellationToken cancellationToken = default)
+        private async Task<MemoryStream> ImageToStream(Image imageIn, IImageFormat imgformat, CancellationToken cancellationToken = default)
         {            
             IImageEncoder encoder = ConfigureImageEncoder(imgformat);
 
