@@ -15,9 +15,6 @@ jobs:
     steps:
     - uses: actions/checkout@v2
 
-    - name: REUSE Compliance Check
-      uses: fsfe/reuse-action@v1
-
     - name: Setup .NET
       uses: actions/setup-dotnet@v1
       with:
@@ -30,7 +27,7 @@ jobs:
       run: dotnet test odh-imageresizer-core.sln --no-build --verbosity normal
 
   deploy-test:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     if: github.ref == 'refs/heads/main'
     needs: test
     concurrency: deploy-test
@@ -46,7 +43,7 @@ jobs:
           X_DOCKER_TAG: ${{ env.DOCKER_TAG }}
           X_ODH_IMAGERESIZERCORE_S3: ${{ secrets.ODH_IMAGERESIZERCORE_S3 }}
           X_SERVER_PORT: 1032
-
+          X_ASPNETCORE_ENVIRONMENT: "Development"
 
       - name: Build and push 
         uses: noi-techpark/github-actions/docker-build-and-push@v2
@@ -66,7 +63,7 @@ jobs:
           project-name: ${{ env.PROJECT_NAME }}
 
   deploy-prod:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     if: github.ref == 'refs/heads/prod'
     needs: test
     concurrency: deploy-prod
@@ -82,6 +79,7 @@ jobs:
           X_DOCKER_TAG: ${{ env.DOCKER_TAG }}
           X_ODH_IMAGERESIZERCORE_S3: ${{ secrets.ODH_IMAGERESIZERCORE_S3 }}
           X_SERVER_PORT: 1032
+          X_ASPNETCORE_ENVIRONMENT: "Production"
 
       - name: Build and push 
         uses: noi-techpark/github-actions/docker-build-and-push@v2

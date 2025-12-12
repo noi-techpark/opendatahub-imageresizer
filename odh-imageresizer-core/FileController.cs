@@ -59,42 +59,6 @@ namespace odh_imageresizer_core
             }
         }
 
-        //USING AWS CLIENT
-        //[CacheOutput(ClientTimeSpan = 0, ServerTimeSpan = 100)]
-        //[HttpGet, Route("GetFile2/{filename}")]
-        //public async Task<IActionResult> GetFile2(string filename, CancellationToken cancellationToken = default)
-        //{
-        //    try
-        //    {
-        //        var creds = new BasicAWSCredentials(keyid, key);
-        //        var config = new AmazonS3Config();
-        //        config.RegionEndpoint = RegionEndpoint.EUWest1;
-        //        var client = new AmazonS3Client(creds, config);
-
-        //        //
-        //        var response = await client.GetAsync(filename, cancellationToken);
-
-        //        var mimeType = response.Content.Headers.ContentType;
-
-        //        var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
-
-        //        //var stream = await client.GetStreamAsync(filename, cancellationToken);        
-
-        //        var extension = mimeType != null ? mimeType.MediaType : "text/plain";
-
-        //        //mimeType returned is wrong!!
-
-        //        return File(stream, "application/pdf");
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        return BadRequest(ex.Message + " " + ex.InnerException);
-        //    }
-        //}
-
-     
-
-
         #endregion
     }
 }

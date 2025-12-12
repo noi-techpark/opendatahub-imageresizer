@@ -1,8 +1,0 @@
-Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
-Upstream-Name: odh-imageresizer-core
-Upstream-Contact: NOI Techpark <digital@noi.bz.it>
-Source: https://github.com/noi-techpark/odh-imageresizer-core
-
-Files: .github/* infrastructure .gitignore .pre-commit-config.yaml LICENSE docker-compose.dcproj .env.example .dockerignore odh-imageresizer-core.sln odh-imageresizer-core/odh-imageresizer-core.csproj odh-imageresizer-core/*.json odh-imageresizer-core/Dockerfile
-Copyright: (c) NOI Techpark <digital@noi.bz.it>
-License: CC0-1.0

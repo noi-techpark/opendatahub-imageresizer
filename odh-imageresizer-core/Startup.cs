@@ -2,7 +2,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-using AspNetCore.CacheOutput.Extensions;
+using AspNetCore.CacheOutput;
+using AspNetCore.CacheOutput.InMemory;
 using AspNetCore.CacheOutput.InMemory.Extensions;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
@@ -34,7 +35,13 @@ namespace odh_imageresizer_core
         public void ConfigureServices(IServiceCollection services)
         {
             services.AddInMemoryCacheOutput();
-      
+
+            //services.AddInMemoryCacheOutput(config =>
+            //{
+            //    config.ExcludeHeadersFromCacheKey.Add("Content-Length");
+            //    config.ExcludeHeadersFromCacheKey.Add("Content-Disposition");
+            //});
+
             //services.Configure<GzipCompressionProviderOptions>(options => options.Level = System.IO.Compression.CompressionLevel.Optimal);
             //services.AddResponseCompression(options =>
             //{
@@ -57,6 +64,7 @@ namespace odh_imageresizer_core
                        .AllowAnyHeader();
             }));
 
+            //services.AddMemoryCache();
             services.AddResponseCaching();
 
             services.AddHttpClient("buckets", c =>
@@ -76,13 +84,18 @@ namespace odh_imageresizer_core
                 app.UseDeveloperExceptionPage();
             }
 
-            //app.UseResponseCompression();
+            // Add response caching middleware
+            //app.UseResponseCaching();
+
+            //app.UseResponseCompression();            
+
+            app.UseImageHeadersMiddleware(); // Add this BEFORE UseRouting or AFTER UseResponseCaching
 
             app.UseRouting();
 
             app.UseCors("CorsPolicy");
 
-            app.UseCacheOutput();
+            //app.UseCacheOutput();
 
             //app.UseResponseCompression();
 
