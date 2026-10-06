@@ -23,9 +23,9 @@ replicaCount: 1
 resources:
   requests:
     cpu: 100m
-    memory: 512Mi
+    memory: 2Gi
   limits:
-    memory: 512Mi
+    memory: 2Gi
 
 service:
   type: ClusterIP
