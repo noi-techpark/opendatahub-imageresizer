@@ -69,7 +69,7 @@ namespace odh_imageresizer_core
 
             services.AddHttpClient("buckets", c =>
                 {
-                    string bucketurl = Configuration["S3BucketUrl"] ?? throw new InvalidProgramException("No S3 Bucket URL provided.");
+                    string bucketurl = Configuration["S3BucketUrl"] ?? Configuration["ODH_IMAGERESIZERCORE_S3"] ?? throw new InvalidProgramException("No S3 Bucket URL provided.");
                     c.BaseAddress = new Uri(bucketurl);
                 })
                 .AddPolicyHandler(retryPolicy)
