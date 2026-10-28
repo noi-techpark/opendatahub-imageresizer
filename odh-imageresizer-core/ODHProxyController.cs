@@ -4,11 +4,13 @@
 
 ﻿using Microsoft.AspNetCore.Mvc;
 using AspNetCore.Proxy;
+using AspNetCore.Proxy.Options;
 using System.Threading.Tasks;
 using System;
-using AspNetCore.CacheOutput;
 using System.Net.Http;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.OutputCaching;
+using System.Net.Http.Headers;
 using System.Linq;
 using System.Collections;
 using System.Collections.Generic;
@@ -19,6 +21,13 @@ namespace odh_imageresizer_core
     [ApiController]
     public class ODHProxyController : ControllerBase
     {
+        private readonly IHttpClientFactory _httpClientFactory;
+
+        public ODHProxyController(IHttpClientFactory httpClientFactory)
+        {
+            _httpClientFactory = httpClientFactory;
+        }
+
         [HttpGet, Route("ODHProxy/{*url}")]
         public Task GetODHProxy(string url)
         {
@@ -35,7 +44,7 @@ namespace odh_imageresizer_core
 
                 Console.WriteLine("Url to proxy: " + fullurl);
 
-                return this.HttpProxyAsync(fullurl);
+                return this.HttpProxyAsync(fullurl, ProxyOptions());
             }
             catch (Exception ex)
             {
@@ -43,7 +52,7 @@ namespace odh_imageresizer_core
             }
         }
 
-        [CacheOutput(ClientTimeSpan = 0, ServerTimeSpan = 14400)]
+        [OutputCache(Duration = 14400, PolicyName = "NoLocking")]
         [HttpGet, Route("ODHProxyCached/{*url}")]
         public Task GetODHProxyCached(string url)
         {
@@ -58,7 +67,8 @@ namespace odh_imageresizer_core
 
                 var fullurl = url + parameter;
 
-                return this.HttpProxyAsync(fullurl);
+                // Cached on the server only, clients have to revalidate
+                return this.HttpProxyAsync(fullurl, WithClientCache(0));
             }
             catch (Exception ex)
             {
@@ -66,7 +76,6 @@ namespace odh_imageresizer_core
             }
         }
 
-        [CacheOutput(ClientTimeSpan = 14400, ServerTimeSpan = 0)]
         [HttpGet, Route("ODHProxyCachedonClient/{*url}")]
         public Task GetODHProxyCachedonClient(string url)
         {
@@ -81,7 +90,7 @@ namespace odh_imageresizer_core
 
                 var fullurl = url + parameter;
 
-                return this.HttpProxyAsync(fullurl);
+                return this.HttpProxyAsync(fullurl, WithClientCache(14400));
             }
             catch (Exception ex)
             {
@@ -89,8 +98,30 @@ namespace odh_imageresizer_core
             }
         }
 
+        // The proxy copies the upstream headers, so the client cache header is set on the upstream response
+        private static HttpProxyOptions WithClientCache(int seconds) =>
+            ProxyOptionsBuilder()
+                .WithAfterReceive((context, response) =>
+                {
+                    response.Headers.CacheControl = new CacheControlHeaderValue { Public = true, MaxAge = TimeSpan.FromSeconds(seconds) };
+                    return Task.CompletedTask;
+                })
+                .Build();
 
-        [CacheOutput(ClientTimeSpan = 14400, ServerTimeSpan = 14400)]
+        public static HttpProxyOptions ProxyOptions() => ProxyOptionsBuilder().Build();
+
+        // Answers failures with a short message, the default of the proxy library sends the whole stack trace
+        private static IHttpProxyOptionsBuilder ProxyOptionsBuilder() =>
+            HttpProxyOptionsBuilder.Instance
+                .WithHandleFailure(async (context, ex) =>
+                {
+                    context.Response.StatusCode = StatusCodes.Status502BadGateway;
+                    await context.Response.WriteAsync("Request could not be proxied. " + ex.Message);
+                });
+
+
+        [OutputCache(Duration = 14400, PolicyName = "NoLocking")]
+        [ResponseCache(Duration = 14400)]
         [HttpGet, Route("ODHProxyCustomCached/{contenttype}/{*url}")]
         public async Task<IActionResult> GetODHProxyCustomCached(string contenttype, string url)
         {
@@ -103,18 +134,16 @@ namespace odh_imageresizer_core
 
             var fullurl = url + parameter;
 
-            var _client = new HttpClient(new HttpClientHandler()
-            {
-                AllowAutoRedirect = false
-            });
+            var _client = _httpClientFactory.CreateClient("customproxy");
             
             var request = HttpContext.CreateProxyHttpRequest(new Uri(fullurl));
             var response = await _client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, HttpContext.RequestAborted);
             await HttpContext.CopyProxyHttpResponse(response, contenttype);
-            return Ok();
+            // The response is already written, so the result must not touch it anymore
+            return new EmptyResult();
         }
 
-        [CacheOutput(ClientTimeSpan = 14400, ServerTimeSpan = 0)]
+        [ResponseCache(Duration = 14400)]
         [HttpGet, Route("ODHProxyCustomCachedonClient/{contenttype}/{*url}")]
         public async Task<IActionResult> GetODHProxyCustomCachedonClient(string contenttype, string url)
         {
@@ -127,18 +156,17 @@ namespace odh_imageresizer_core
 
             var fullurl = url + parameter;
 
-            var _client = new HttpClient(new HttpClientHandler()
-            {
-                AllowAutoRedirect = false
-            });
+            var _client = _httpClientFactory.CreateClient("customproxy");
 
             var request = HttpContext.CreateProxyHttpRequest(new Uri(fullurl));
             var response = await _client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, HttpContext.RequestAborted);
             await HttpContext.CopyProxyHttpResponse(response, contenttype);
-            return Ok();
+            // The response is already written, so the result must not touch it anymore
+            return new EmptyResult();
         }
 
-        [CacheOutput(ClientTimeSpan = 0, ServerTimeSpan = 14400)]
+        [OutputCache(Duration = 14400, PolicyName = "NoLocking")]
+        [ResponseCache(Duration = 0)]
         [HttpGet, Route("ODHProxyCustomCachedonServer/{contenttype}/{*url}")]
         public async Task<IActionResult> GetODHProxyCustomCachedonServer(string contenttype, string url)
         {
@@ -151,15 +179,13 @@ namespace odh_imageresizer_core
 
             var fullurl = url + parameter;
 
-            var _client = new HttpClient(new HttpClientHandler()
-            {
-                AllowAutoRedirect = false
-            });
+            var _client = _httpClientFactory.CreateClient("customproxy");
 
             var request = HttpContext.CreateProxyHttpRequest(new Uri(fullurl));
             var response = await _client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, HttpContext.RequestAborted);
             await HttpContext.CopyProxyHttpResponse(response, contenttype);
-            return Ok();
+            // The response is already written, so the result must not touch it anymore
+            return new EmptyResult();
         }
     }
 
@@ -209,6 +235,9 @@ namespace odh_imageresizer_core
 
             var response = context.Response;
 
+            // Keep our own Cache-Control (set by [ResponseCache]) instead of the upstream one
+            var ownCacheControl = response.Headers.CacheControl;
+
             response.StatusCode = (int)responseMessage.StatusCode;
 
             
@@ -236,6 +265,9 @@ namespace odh_imageresizer_core
             response.Headers.Remove("CF-RAY");
             response.Headers.Remove("Date");
             response.Headers.Remove("Content-Encoding");
+
+            if (!string.IsNullOrEmpty(ownCacheControl))
+                response.Headers.CacheControl = ownCacheControl;
 
 
             //https://localhost:44373/api/ODHProxyCustomCached/https://www.dolomitisuperski.com/file/?uuidLift=01e04d73-8ab9-44b8-9b37-d693d4ddf49f

@@ -7,9 +7,9 @@ using System.Net.Http;
 using System.Threading.Tasks;
 using System.Threading;
 using System;
-using AspNetCore.CacheOutput;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.OutputCaching;
 using Microsoft.Extensions.Configuration;
 using SixLabors.ImageSharp.Formats;
 using SixLabors.ImageSharp.Processing;
@@ -37,7 +37,8 @@ namespace odh_imageresizer_core
 
         #region Documents
 
-        [CacheOutput(ClientTimeSpan = 0, ServerTimeSpan = 100)]
+        [OutputCache(Duration = 100, PolicyName = "NoLocking")]
+        [ResponseCache(Duration = 0)]
         [HttpGet, Route("GetFile/{filename}")]
         public async Task<IActionResult> GetFile(string filename, CancellationToken cancellationToken = default)
         {
@@ -45,13 +46,19 @@ namespace odh_imageresizer_core
             {
                 using var client = _httpClientFactory.CreateClient("buckets");
 
-                var response = await client.GetAsync(filename, cancellationToken);
+                var uri = BucketFile.Resolve(client, filename);
+                if (uri == null)
+                    return BadRequest(BucketFile.NotInBucket);
 
-                var mimeType = response.Content.Headers.ContentType;                
+                // Stream the file instead of downloading it completely into memory first
+                var response = await client.GetAsync(uri, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
 
-                var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
-                                
-                return File(stream, mimeType.MediaType);
+                if (!response.IsSuccessStatusCode)
+                    return BucketFile.Error(this, response);
+
+                var mimeType = response.Content.Headers.ContentType?.MediaType ?? "application/octet-stream";
+
+                return await BucketFile.Stream(this, response, mimeType, cancellationToken);
             }
             catch(Exception ex)
             {
