@@ -54,6 +54,13 @@ ingress:
 env:
   ASPNETCORE_URLS: "http://+:80"
   ASPNETCORE_ENVIRONMENT: "Production"
+  # Max memory of the server side response cache (MB), keep well below the memory limit
+  ASPNETCORE_OutputCacheSizeLimitMB: "512"
+  # Image resizes running in parallel, each one holds a decoded image in memory
+  ASPNETCORE_MaxConcurrentResizes: "4"
+  # Workstation GC with memory conserving, lower memory footprint than the default Server GC
+  DOTNET_gcServer: "0"
+  DOTNET_GCConserveMemory: "5"
 
 # Sensitive environment. Placeholders only — filled at deploy time by the workflow.
 envSecret:
